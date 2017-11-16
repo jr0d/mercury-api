@@ -15,7 +15,15 @@ inventory_router_url = api_configuration['inventory']['inventory_router']
 rpc_router_url = api_configuration['rpc']['rpc_router']
 
 inventory_client = InventoryClient(inventory_router_url)
-rpc_client = RPCFrontEndClient(rpc_router_url)
+
+__rpc_client_cache = {}
+
+
+def get_rpc_client(router_zurl):
+    if not __rpc_client_cache.get(router_zurl):
+        log.info(f'Creating connection to backend service: {router_zurl}')
+        __rpc_client_cache[router_zurl] = RPCFrontEndClient(router_zurl)
+    return __rpc_client_cache[router_zurl]
 
 
 def http_error(message, code=500):
@@ -28,7 +36,8 @@ def validate_json(f):
             if not request.json:
                 return http_error('JSON request is missing', code=400)
         except ValueError:
-            log.debug('JSON request is malformed: {}'.format(request.body.read()))
+            log.debug('JSON request is malformed: {}'.format(
+                request.body.read()))
             return http_error('JSON request is malformed', code=400)
 
         return f(*args, **kwargs)
@@ -72,7 +81,7 @@ def get_paging_info_from_qsa():
 
     try:
         _d['sort_direction'] = int(sort_direction)
-    except (TypeError, ValueError):  # None == TypeError, anything else == ValueError
+    except (TypeError, ValueError):
         pass
 
     return _d
@@ -185,7 +194,7 @@ def active_computer_query():
 
 
 @route('/api/rpc/jobs/<job_id>', method='GET')
-def get_job(job_id):
+def get_job(origin, job_id):
     projection = get_projection_from_qsa()
     jobs = rpc_client.get_job(job_id, projection)
     if not jobs:
@@ -231,7 +240,8 @@ def post_jobs():
     instruction = request.json.get('instruction')
 
     if not isinstance(instruction, dict):
-        return http_error('Command is missing from request or is malformed', code=400)
+        return http_error('Command is missing from request or is malformed',
+                          code=400)
 
     query = request.json.get('query')
 

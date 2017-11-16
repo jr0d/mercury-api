@@ -29,5 +29,10 @@ setup(
         'pyzmq',
         'msgpack-python',
         'mercury-common',
-    ]
+    ],
+    entry_points={
+        'console_scripts': [
+            'mercury-api = mercury_api.frontend:main'
+        ]
+        }
 )
