@@ -30,9 +30,9 @@ log = setup_logging(app)
 @app.errorhandler(HTTPError)
 def http_error(error):
     """
-    Sets the app error handler to modify the error message in the 
+    Sets the app error handler to modify the error message in the
     response object and log it in the transactional logger.
-    :param error: 
+    :param error:
     :return: Flask response object
     """
     response = jsonify(error.to_dict())
@@ -47,8 +47,8 @@ def log_request(response):
     """
     Logs the response status in the transactional logger after the
     request is processed.
-    :param response: 
-    :return: Flask response object 
+    :param response:
+    :return: Flask response object
     """
     log.info(response.status)
     return response

@@ -17,7 +17,7 @@ import logging
 
 from flask import request, jsonify
 
-from mercury_api.views import BaseMethodView
+from mercury_api.views.base import BaseMethodView
 from mercury_api.exceptions import HTTPError
 from mercury_api.decorators import validate_json, check_query
 
@@ -64,7 +64,7 @@ class ComputerQueryView(BaseMethodView):
     def post(self):
         """
         Query the inventory with a given set of parameters.
-        
+
         :return: List of inventory objects.
         """
         query = request.json.get('query')
@@ -88,7 +88,7 @@ class ComputerCountView(BaseMethodView):
     def post(self):
         """
         Return the device count that matches the given projection.
-        
+
         :return: Device count dictionary.
         """
         query = request.json.get('query')

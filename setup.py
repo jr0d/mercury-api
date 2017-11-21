@@ -30,6 +30,7 @@ setup(
         'msgpack-python',
         'mercury-common',
         'gevent',
+        'redis'
     ],
     entry_points={
         'console_scripts': [

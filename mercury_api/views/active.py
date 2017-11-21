@@ -15,7 +15,7 @@
 
 from flask import request, jsonify
 
-from mercury_api.views import BaseMethodView
+from mercury_api.views.base import BaseMethodView
 from mercury_api.exceptions import HTTPError
 from mercury_api.decorators import validate_json, check_query
 
@@ -29,7 +29,7 @@ class ActiveComputerView(BaseMethodView):
         """
         Query the inventory client for active records with a given projection
         or get one by mercury_id.
-        
+
         :param mercury_id: Inventory object mercury id, default is None.
         :return: List of inventory objects or a single inventory object.
         """
@@ -77,7 +77,7 @@ class ActiveComputerQueryView(BaseMethodView):
     def post(self):
         """
         Query the active inventory with a given projection.
-        
+
         :return: List of inventory objects.
         """
         query = request.json.get('query')

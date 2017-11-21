@@ -42,10 +42,10 @@ formatter = logging.Formatter("%(utcnow)s : %(levelname)s client=%(client)s "
 
 def setup_logging(app):
     """
-    Sets the log level set in the api configuration and attaches the 
+    Sets the log level set in the api configuration and attaches the
     required log handlers to the default app logger.
-    
-    :param app: Flask app instance 
+
+    :param app: Flask app instance
     :return: The Flask app default logger.
     """
     log_configuration = get_api_configuration().api.logging

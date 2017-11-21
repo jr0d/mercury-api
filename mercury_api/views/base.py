@@ -19,9 +19,7 @@ import logging
 from flask import request
 from flask.views import MethodView
 
-from mercury.common.clients.inventory import InventoryClient
-from mercury.common.clients.rpc.frontend import RPCFrontEndClient
-
+from mercury_api.clients import get_inventory_client, get_redis_client
 from mercury_api.configuration import get_api_configuration
 
 log = logging.getLogger(__name__)
@@ -33,17 +31,16 @@ class BaseMethodView(MethodView):
 
     def __init__(self):
         super(BaseMethodView, self).__init__()
-        inventory_url = api_configuration.api.inventory.inventory_router
-        rpc_url = api_configuration.api.rpc.rpc_router
-        self.inventory_client = InventoryClient(inventory_url)
-        self.rpc_client = RPCFrontEndClient(rpc_url)
+
+        self.inventory_client = get_inventory_client()
+        self.redis_client = get_redis_client()
 
     @staticmethod
     def get_projection_from_qsa():
         """
-        Gets the projection from the request url parameters and transforms 
+        Gets the projection from the request url parameters and transforms
         them into a dictionary.
-        
+
         :return: Dictionary
         """
         projection_keys = request.args.get('projection', '')
@@ -59,7 +56,7 @@ class BaseMethodView(MethodView):
         """
         Gets the paging delimiters from the url if any, otherwise return
         the defaults from the api configuration.
-        
+
         :return: Dictionary
         """
         delimiters = api_configuration.api.paging.to_dict()
@@ -83,7 +80,7 @@ class BaseMethodView(MethodView):
     def get_limit_and_sort_direction(self):
         """
         Get the limit and sort direction from the paging method.
-        
+
         :return: Tuple
         """
         paging_data = self.get_paging_info_from_qsa()

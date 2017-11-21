@@ -13,20 +13,21 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-from mercury_api.inventory.views import (
+from mercury_api.views.inventory import (
     ComputerView,
     ComputerCountView,
     ComputerQueryView,
 )
-from mercury_api.active.views import (
-    ActiveComputerView,
-    ActiveComputerQueryView,
-)
-from mercury_api.rpc.views import (
+from mercury_api.views.rpc import (
     JobView,
     JobStatusView,
     JobTaskView,
     TaskView,
+)
+
+from mercury_api.views.active import (
+    ActiveComputerView,
+    ActiveComputerQueryView,
 )
 
 computer_view = ComputerView.as_view('computer')
