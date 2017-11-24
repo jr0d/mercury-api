@@ -12,14 +12,14 @@
 #    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
-import json
 
-import redis
+import json
+import uuid
 
 from flask import request, jsonify
 
 from mercury_api.views.base import BaseMethodView
-from mercury_api.clients import get_rpc_client
+from mercury_api.clients import get_inventory_client, get_rpc_client
 from mercury_api.exceptions import HTTPError
 from mercury_api.decorators import validate_json, check_query
 
@@ -51,8 +51,15 @@ class BaseJobView(BaseMethodView):
 
         return response and json.loads(response) or []
 
+    def submit_job(self, target_query, instruction):
+        """
 
-class JobView(BaseMethodView):
+        :param target_query:
+        :param instruction:
+        :return:
+        """
+
+class JobView(BaseJobView):
     """ RPC job API view """
 
     decorators = [check_query, validate_json]
@@ -95,7 +102,7 @@ class JobView(BaseMethodView):
         return jsonify(job_id)
 
 
-class JobStatusView(BaseMethodView):
+class JobStatusView(BaseJobView):
     """ RPC job status view """
 
     def get(self, job_id):
@@ -112,7 +119,7 @@ class JobStatusView(BaseMethodView):
         return jsonify(job)
 
 
-class JobTaskView(BaseMethodView):
+class JobTaskView(BaseJobView):
     """ RPC job task view """
 
     def get(self, job_id):
@@ -130,7 +137,7 @@ class JobTaskView(BaseMethodView):
         return jsonify(tasks)
 
 
-class TaskView(BaseMethodView):
+class TaskView(BaseJobView):
     """ RPC task view """
 
     def get(self, task_id):
