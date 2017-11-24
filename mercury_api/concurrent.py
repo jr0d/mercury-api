@@ -1,3 +1,5 @@
+""" The executor is used to concurrently dispatch requests to RPC services """
+
 from concurrent.futures.thread import ThreadPoolExecutor
 
 __executor = None

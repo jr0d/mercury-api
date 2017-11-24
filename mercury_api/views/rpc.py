@@ -14,23 +14,35 @@
 #    limitations under the License.
 
 import json
+import logging
 import uuid
 
 from flask import request, jsonify
+from mercury.common.transport import format_zurl
 
 from mercury_api.views.base import BaseMethodView
-from mercury_api.clients import get_inventory_client, get_rpc_client
+from mercury_api.clients import get_rpc_client
+from mercury_api.concurrent import get_executor
 from mercury_api.exceptions import HTTPError
 from mercury_api.decorators import validate_json, check_query
+
+log = logging.getLogger(__name__)
 
 
 class BaseJobView(BaseMethodView):
     JOB_ID_PREFIX = 'job_id-'
 
-    def __init__(self):
-        super(BaseJobView, self).__init__()
+    def __init__(self, soft_dispatch_timeout=2, dispatch_timeout=10):
+        """
 
-    def store_job(self, job_id, backend_targets, ttl):
+        :param soft_dispatch_timeout:
+        :param dispatch_timeout:
+        """
+        super(BaseJobView, self).__init__()
+        self.soft_dispatch_timeout = soft_dispatch_timeout
+        self.soft_dispatch_timeout = dispatch_timeout
+
+    def store_job_relationship(self, job_id, backend_targets, ttl):
         """ Store job_id and backend relationship
 
         :param job_id: The job_id we'll be using
@@ -42,7 +54,7 @@ class BaseJobView(BaseMethodView):
         return self.redis_client.setex(self.JOB_ID_PREFIX + job_id,
                                        json.dumps(backend_targets), ttl)
 
-    def get_job(self, job_id):
+    def get_job_relationship(self, job_id):
         """ Get backend servers associated with job
         :param job_id: The job_id we are searching for
         :return: list of backend or an empty list
@@ -51,13 +63,69 @@ class BaseJobView(BaseMethodView):
 
         return response and json.loads(response) or []
 
-    def submit_job(self, target_query, instruction):
+    @staticmethod
+    def _submit_job(backend_zurl, job_id, target_query, instruction):
+        """
+        :param backend_zurl:
+        :param job_id:
+        :param target_query:
+        :param instruction:
+        :return:
+        """
+        log.info(f'Dispatching job {job_id} to {backend_zurl}')
+        return get_rpc_client(backend_zurl).create_job(
+            target_query,
+            instruction,
+            job_id=job_id
+        )
+
+    def submit_jobs(self, target_query, instruction):
         """
 
         :param target_query:
         :param instruction:
         :return:
         """
+        targets = self.get_origins_from_query(target_query)
+        log.debug(f'Scheduling task targeting {", ".join(targets)}')
+
+    def get_origins_from_query(self, target_query):
+        """ As we move things outward and upward, such as the Active collection,
+        it becomes more apparent that having the jobs data layer exist parallel
+        with the backend is not the correct approach. Back ends should only
+        contain task workers (redis). Job and task updates should be forwarded
+        to the control layer ( currently where the inventory and API services
+        live ). For now, we will aggregate the job data returned from each
+        target back end. This temporary implementation will satisfy the design
+        requirement of scheduling jobs on multiple backend systems with one
+        API call.
+
+        Why is this implementation bad:
+
+        1) Complexity: If the jobs collection (and job creation service) was
+        centralized, we would remove the need to store target back ends
+        separately from actual job. Also, we would no longer need to
+        aggregate data from multiple sources.
+        2) Performance: At least two and at most 1 + len(backends) inventory
+        queries are now required to inject a job. If the backends simply took
+        a list of pre-rendered tasks, the backends would only be concerned with
+        dispatch and forwarding updates to the control server. Rather than
+        attempting to enumerate targets on their own
+
+        :param target_query: The query we will use to aggregate targets
+        """
+        origins = self.inventory_client.query(
+            target_query,
+            projection=['origin']
+        )['items']
+
+        origin_urls = set()
+
+        for origin in origins:
+            origin_urls.add(format_zurl(origin['address'], origin['port']))
+
+        return list(origin_urls)
+
 
 class JobView(BaseJobView):
     """ RPC job API view """
