@@ -32,15 +32,20 @@ log = logging.getLogger(__name__)
 class BaseJobView(BaseMethodView):
     JOB_ID_PREFIX = 'job_id-'
 
-    def __init__(self, soft_dispatch_timeout=2, dispatch_timeout=10):
+    def __init__(self,
+                 soft_dispatch_timeout=2,
+                 dispatch_timeout=10,
+                 future_poll_time=.2):
         """
 
         :param soft_dispatch_timeout:
         :param dispatch_timeout:
+        :param future_poll_time:
         """
         super(BaseJobView, self).__init__()
         self.soft_dispatch_timeout = soft_dispatch_timeout
-        self.soft_dispatch_timeout = dispatch_timeout
+        self.dispatch_timeout = dispatch_timeout
+        self.future_poll_time = future_poll_time
 
     def store_job_relationship(self, job_id, backend_targets, ttl):
         """ Store job_id and backend relationship
@@ -79,6 +84,9 @@ class BaseJobView(BaseMethodView):
             job_id=job_id
         )
 
+    def poll_futures(self, futures, poll_time):
+        pass
+
     def submit_jobs(self, target_query, instruction):
         """
 
@@ -88,6 +96,12 @@ class BaseJobView(BaseMethodView):
         """
         targets = self.get_origins_from_query(target_query)
         log.debug(f'Scheduling task targeting {", ".join(targets)}')
+        job_id = uuid.uuid4()
+
+        futures = list()
+        for target in targets:
+            futures.append(self._submit_job(
+                target, job_id, target_query, instruction))
 
     def get_origins_from_query(self, target_query):
         """ As we move things outward and upward, such as the Active collection,
@@ -102,10 +116,14 @@ class BaseJobView(BaseMethodView):
 
         Why is this implementation bad:
 
-        1) Complexity: If the jobs collection (and job creation service) was
-        centralized, we would remove the need to store target back ends
-        separately from actual job. Also, we would no longer need to
+        1) Complexity: The current implementation requires three databases and
+        mongo collections. Multiple calls for injection and status must be made
+        to each backend. Data return from that backends must be aggregated by
+        the API. In the future implementation jobs collection (and job creation
+        service) was centralized, we would remove the need to store target back
+        ends separately from actual job. Also, we would no longer need to
         aggregate data from multiple sources.
+
         2) Performance: At least two and at most 1 + len(backends) inventory
         queries are now required to inject a job. If the backends simply took
         a list of pre-rendered tasks, the backends would only be concerned with
