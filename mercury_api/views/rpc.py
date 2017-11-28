@@ -15,6 +15,7 @@
 
 import json
 import logging
+import time
 import uuid
 
 from flask import request, jsonify
@@ -84,8 +85,18 @@ class BaseJobView(BaseMethodView):
             job_id=job_id
         )
 
-    def poll_futures(self, futures, poll_time):
-        pass
+    def poll_futures(self, futures):
+        start = time.time()
+        future_dicts = [dict(
+            future=future,
+            soft_timeout=False,
+            hard_timeout=False
+        ) for future in futures]
+
+        for future_dict in [f for f in future_dicts if f['future'].done()]:
+            if not (future_dict['soft_timeout'] or not (
+                    time.time() - start > self.soft_dispatch_timeout)):
+                future_dict['soft_timeout'] = True
 
     def submit_jobs(self, target_query, instruction):
         """
@@ -132,7 +143,7 @@ class BaseJobView(BaseMethodView):
         backends separately from the actual job. Data would no longer need to be
         aggregated from multiple sources and round trips to the database and the
         backends will be greatly reduced
-        
+
         :param target_query: The query we will use to aggregate targets
         """
         origins = self.inventory_client.query(
