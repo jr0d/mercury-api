@@ -117,12 +117,12 @@ class BaseJobView(BaseMethodView):
         Why is this implementation bad:
 
         1) Complexity: The current implementation requires three databases and
-        mongo collections. Multiple calls for injection and status must be made
-        to each backend. Data return from that backends must be aggregated by
-        the API. In the future implementation jobs collection (and job creation
-        service) was centralized, we would remove the need to store target back
-        ends separately from actual job. Also, we would no longer need to
-        aggregate data from multiple sources.
+        two mongo collections. Multiple calls for injection and status must be
+        made to target backend. Data returned from those backends must be
+        aggregated by at the API layer. In the future implementation jobs
+        collection (and job creation service) was centralized, we would remove
+        the need to store target backends separately from actual job. Also, we
+        would no longer need to aggregate data from multiple sources.
 
         2) Performance: At least two and at most 1 + len(backends) inventory
         queries are now required to inject a job. If the backends simply took
