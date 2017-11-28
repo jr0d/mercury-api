@@ -119,10 +119,7 @@ class BaseJobView(BaseMethodView):
         1) Complexity: The current implementation requires three databases and
         two mongo collections. Multiple calls for injection and status must be
         made to target backend. Data returned from those backends must be
-        aggregated by at the API layer. In the future implementation jobs
-        collection (and job creation service) was centralized, we would remove
-        the need to store target backends separately from actual job. Also, we
-        would no longer need to aggregate data from multiple sources.
+        aggregated by at the API layer.
 
         2) Performance: At least two and at most 1 + len(backends) inventory
         queries are now required to inject a job. If the backends simply took
@@ -130,6 +127,12 @@ class BaseJobView(BaseMethodView):
         dispatch and forwarding updates to the control server. Rather than
         attempting to enumerate targets on their own
 
+        In the future implementation the jobs collection (and job creation
+        service) will be centralized, thus removing the need to store target
+        backends separately from the actual job. Data would no longer need to be
+        aggregated from multiple sources and round trips to the database and the
+        backends will be greatly reduced
+        
         :param target_query: The query we will use to aggregate targets
         """
         origins = self.inventory_client.query(
