@@ -33,20 +33,13 @@ log = logging.getLogger(__name__)
 class BaseJobView(BaseMethodView):
     JOB_ID_PREFIX = 'job_id-'
 
-    def __init__(self,
-                 soft_dispatch_timeout=2,
-                 dispatch_timeout=10,
-                 future_poll_time=.2):
+    def __init__(self, dispatch_timeout=10):
         """
 
-        :param soft_dispatch_timeout:
         :param dispatch_timeout:
-        :param future_poll_time:
         """
         super(BaseJobView, self).__init__()
-        self.soft_dispatch_timeout = soft_dispatch_timeout
         self.dispatch_timeout = dispatch_timeout
-        self.future_poll_time = future_poll_time
 
     def store_job_relationship(self, job_id, backend_targets, ttl):
         """ Store job_id and backend relationship
@@ -86,17 +79,8 @@ class BaseJobView(BaseMethodView):
         )
 
     def poll_futures(self, futures):
-        start = time.time()
-        future_dicts = [dict(
-            future=future,
-            soft_timeout=False,
-            hard_timeout=False
-        ) for future in futures]
-
-        for future_dict in [f for f in future_dicts if f['future'].done()]:
-            if not (future_dict['soft_timeout'] or not (
-                    time.time() - start > self.soft_dispatch_timeout)):
-                future_dict['soft_timeout'] = True
+        return [future.result(
+            timeout=self.dispatch_timeout) for future in futures]
 
     def submit_jobs(self, target_query, instruction):
         """
@@ -113,6 +97,12 @@ class BaseJobView(BaseMethodView):
         for target in targets:
             futures.append(self._submit_job(
                 target, job_id, target_query, instruction))
+
+        try:
+            results = self.poll_futures(futures)
+        except TimeoutError:
+            log.error('Timeout occurred while submitting jobs to one or more '
+                      'backends')
 
     def get_origins_from_query(self, target_query):
         """ As we move things outward and upward, such as the Active collection,
