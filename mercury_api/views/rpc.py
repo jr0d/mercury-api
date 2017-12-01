@@ -18,6 +18,8 @@ import logging
 import time
 import uuid
 
+from concurrent.futures import TimeoutError
+
 from flask import request, jsonify
 from mercury.common.transport import format_zurl
 
@@ -62,6 +64,69 @@ class BaseJobView(BaseMethodView):
 
         return response and json.loads(response) or []
 
+    def aggregate_job(self, job_id):
+        """
+        Really lazy aggregation, simply displays the result from each backend
+        :param job_id:
+        :return:
+        """
+        backends = self.get_job_relationship(job_id)
+        if not backends:
+            return {}  # Should 404 in view
+
+        def get_job(backend):
+            return get_rpc_client(backend).get_job(job_id)
+
+        aggregate_result = {'job_id': job_id, 'backend_responses': []}
+        for result in get_executor().map(get_job,
+                                         backends,
+                                         timeout=self.dispatch_timeout):
+            aggregate_result['backend_responses'].append(result)
+
+        return aggregate_result
+
+    def aggregate_status(self, job_id):
+        """
+
+        :param job_id:
+        :return:
+        """
+
+        backends = self.get_job_relationship(job_id)
+        if not backends:
+            return
+
+        def get_status(backend):
+            return get_rpc_client(backend).get_job_status(job_id)
+
+        aggregate_result = {'job_id': job_id,
+                            'tasks': [],
+                            'task_count': 0,
+                            'job_start_times': [],
+                            'job_completed_times': []}
+        for backend, result in zip(backends,
+                                   get_executor().map(
+                                       get_status,
+                                       backends,
+                                       timeout=self.dispatch_timeout)):
+            aggregate_result['task_count'] += result['task_count']
+            aggregate_result['tasks'] += \
+                [task['backend'] for task in result['tasks']]
+            aggregate_result['has_failures'] = result['has_failures']
+            aggregate_result['job_start_times'].append({
+                'backend': backend,
+                'time_started': result['time_started']
+            })
+            aggregate_result['job_completed_times'].append({
+                'backend': backend,
+                'time_completed': result['time_completed']
+            })
+
+
+
+
+
+
     @staticmethod
     def _submit_job(backend_zurl, job_id, target_query, instruction):
         """
@@ -79,8 +144,13 @@ class BaseJobView(BaseMethodView):
         )
 
     def poll_futures(self, futures):
-        return [future.result(
-            timeout=self.dispatch_timeout) for future in futures]
+        results = []
+        for future in futures:
+            try:
+                results.append(future.result(timeout=self.dispatch_timeout))
+            except TimeoutError:
+                results.append(future.exception())
+        return results
 
     def submit_jobs(self, target_query, instruction):
         """
@@ -98,11 +168,25 @@ class BaseJobView(BaseMethodView):
             futures.append(self._submit_job(
                 target, job_id, target_query, instruction))
 
+        # noinspection PyBroadException
         try:
             results = self.poll_futures(futures)
-        except TimeoutError:
-            log.error('Timeout occurred while submitting jobs to one or more '
-                      'backends')
+        except Exception:
+            log.exception(f'An unhandled exception occurred has occurred while '
+                          f'submitting job {job_id}')
+            raise
+
+        errors = []
+        for target, result in zip(targets, results):
+            if isinstance(result, TimeoutError):
+                errors.append(target)
+                log.error(f'Timeout dispatching job to {target}')
+        if errors:
+            raise HTTPError('Timeout while interacting with backend system(s): '
+                            '{}\n'.format('\n'.join(errors)) +
+                            '\nSome jobs may have executed.')
+
+        return job_id
 
     def get_origins_from_query(self, target_query):
         """ As we move things outward and upward, such as the Active collection,
@@ -154,7 +238,7 @@ class JobView(BaseJobView):
 
     decorators = [check_query, validate_json]
 
-    def get(self, job_id=None):
+    def get(self, job_id):
         """
         Query the RPC service for job records with a given projection
         or get one by job_id.
@@ -163,13 +247,10 @@ class JobView(BaseJobView):
         :return: List of job objects or a single job object.
         """
         projection = self.get_projection_from_qsa()
-        if job_id is None:
-            data = self.rpc_client.get_jobs(projection or {'instruction': 0})
-        else:
-            data = self.rpc_client.get_job(job_id, projection)
-            if not data:
-                raise HTTPError(
-                    'Job {} does not exist'.format(job_id), status_code=404)
+        data = self.rpc_client.get_job(job_id, projection)
+        if not data:
+            raise HTTPError(
+                'Job {} does not exist'.format(job_id), status_code=404)
         return jsonify(data)
 
     def post(self):
@@ -225,19 +306,3 @@ class JobTaskView(BaseJobView):
             raise HTTPError(
                 'No tasks exist for job {}'.format(job_id), status_code=404)
         return jsonify(tasks)
-
-
-class TaskView(BaseJobView):
-    """ RPC task view """
-
-    def get(self, task_id):
-        """
-        Query the RPC service for a task record with a given task_id.
-
-        :param task_id: RPC task id.
-        :return: Sinle RPC task object.
-        """
-        task = self.rpc_client.get_task(task_id)
-        if not task:
-            raise HTTPError('Task not found', status_code=404)
-        return jsonify(task)

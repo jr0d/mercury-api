@@ -22,7 +22,6 @@ from mercury_api.views.rpc import (
     JobView,
     JobStatusView,
     JobTaskView,
-    TaskView,
 )
 
 from mercury_api.views.active import (
@@ -51,6 +50,5 @@ api_urls = [
     ('/api/rpc/jobs/status/', JobStatusView.as_view('job_status')),
     ('/api/rpc/jobs/tasks/', JobTaskView.as_view('job_task')),
     ('/api/rpc/jobs/', job_view),
-    ('/api/rpc/jobs/<job_id>/', job_view),
-    ('/api/rpc/task/<task_id>/', TaskView.as_view('task')),
+    ('/api/rpc/jobs/<job_id>/', job_view)
 ]
