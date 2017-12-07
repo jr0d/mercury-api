@@ -85,6 +85,7 @@ class BaseJobView(BaseMethodView):
 
         return aggregate_result
 
+    # noinspection PyTypeChecker
     def aggregate_status(self, job_id):
         """
 
