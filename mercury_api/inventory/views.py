@@ -15,7 +15,7 @@
 
 import logging
 
-from flask import request, jsonify
+from flask import request, jsonify, abort, Response
 
 from mercury_api.views import BaseMethodView
 from mercury_api.exceptions import HTTPError
@@ -94,3 +94,40 @@ class ComputerCountView(BaseMethodView):
         query = request.json.get('query')
         data = {'count': self.inventory_client.count(query)}
         return jsonify(data)
+
+
+class ComputerBootStateView(BaseMethodView):
+    """ Inventory computer boot API view """
+
+    decorators = [validate_json]
+
+    def post(self, mercury_id):
+        # TODO: openapi doc strings???
+        """
+        Sets the inventory boot state
+        :param mercury_id: The mercury_id of the target
+        :return:
+        """
+
+        state = request.json.get('state', '')
+
+        if state not in ['local', 'rescue']:
+            log.error('Invalid state received: {}'.format(state))
+            abort(400, 'state must be either local or rescue')
+
+        log.info('Setting boot state to {} for {}'.format(state, mercury_id))
+        self.inventory_client.update_one(mercury_id, {
+            'boot.state': state
+        })
+
+        return jsonify(dict(message='accepted'))
+
+    def delete(self, mercury_id):
+        """ Delete the current state """
+
+        log.info('Deleting boot state for {}'.format(mercury_id))
+        self.inventory_client.update_one(mercury_id, {
+            'boot.state': None
+        })
+
+        return jsonify(dict(message='deleted'))

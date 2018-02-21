@@ -17,6 +17,7 @@ from mercury_api.inventory.views import (
     ComputerView,
     ComputerCountView,
     ComputerQueryView,
+    ComputerBootStateView
 )
 from mercury_api.active.views import (
     ActiveComputerView,
@@ -39,6 +40,8 @@ api_urls = [
      ComputerQueryView.as_view('computer_query')),
     ('/api/inventory/computers/count',
      ComputerCountView.as_view('computer_count')),
+    ('/api/inventory/computers/boot/state/<mercury_id>',
+     ComputerBootStateView.as_view('computer_boot_state')),
     ('/api/inventory/computers', computer_view),
     ('/api/inventory/computers/<mercury_id>', computer_view),
     # Active computer url rules
