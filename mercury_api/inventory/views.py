@@ -15,7 +15,8 @@
 
 import logging
 
-from flask import request, jsonify, abort, Response
+from flask import request, jsonify, abort
+from mercury.common.exceptions import MercuryTransportError
 
 from mercury_api.views import BaseMethodView
 from mercury_api.exceptions import HTTPError
@@ -98,9 +99,7 @@ class ComputerCountView(BaseMethodView):
 
 class ComputerBootStateView(BaseMethodView):
     """ Inventory computer boot API view """
-
-    decorators = [validate_json]
-
+    @validate_json
     def post(self, mercury_id):
         # TODO: openapi doc strings???
         """
@@ -115,19 +114,96 @@ class ComputerBootStateView(BaseMethodView):
             log.error('Invalid state received: {}'.format(state))
             abort(400, 'state must be either local or rescue')
 
-        log.info('Setting boot state to {} for {}'.format(state, mercury_id))
-        self.inventory_client.update_one(mercury_id, {
-            'boot.state': state
-        })
+        try:
+            self.inventory_client.update_one(mercury_id, {
+                'boot.state': state
+            })
+        # This is a hack, going to build in proper response handling in the
+        # inventory controller so we no longer have to scrape the exception
+        except MercuryTransportError as mte:
+            if 'Attempting to update non-existing record' in mte.args[0]:
+                abort(404, 'MercuryID does not exist')
 
-        return jsonify(dict(message='accepted'))
+        log.info(
+            'Set boot state to {} for {}'.format(state, mercury_id))
+
+        response = jsonify(dict(message='accepted'))
+        response.status_code = 202
+
+        return response
 
     def delete(self, mercury_id):
         """ Delete the current state """
 
-        log.info('Deleting boot state for {}'.format(mercury_id))
-        self.inventory_client.update_one(mercury_id, {
-            'boot.state': None
-        })
+        try:
+            self.inventory_client.update_one(mercury_id, {
+                'boot.state': None
+            })
+        # This is a hack, going to build in proper response handling in the
+        # inventory controller so we no longer have to scrape the exception
+        except MercuryTransportError as mte:
+            if 'Attempting to update non-existing record' in mte.args[0]:
+                abort(404, 'MercuryID does not exist')
 
-        return jsonify(dict(message='deleted'))
+        log.info('Deleted boot state for {}'.format(mercury_id))
+        response = jsonify(dict(message='deleted'))
+        response.status_code = 202
+
+        return response
+
+
+class ComputerBootScriptView(BaseMethodView):
+    @validate_json
+    def post(self, mercury_id):
+        """
+
+        :param mercury_id:
+        :return:
+        """
+
+        try:
+            script = request.json['script']
+        except KeyError:
+            log.error('Script was not defined in request')
+            abort(400, 'Script was not defined in request')
+            return  # Return here so that pycharm knows that `script` is set
+
+        try:
+            self.inventory_client.update_one(mercury_id, {
+                'boot.script': script
+            })
+        # This is a hack, going to build in proper response handling in the
+        # inventory controller so we no longer have to scrape the exception
+        except MercuryTransportError as mte:
+            if 'Attempting to update non-existing record' in mte.args[0]:
+                abort(404, 'MercuryID does not exist')
+
+        log.info('Set explicit script for {}'.format(mercury_id))
+
+        response = jsonify(dict(message='accepted'))
+        response.status_code = 202
+
+        return response
+
+    def delete(self, mercury_id):
+        """
+
+        :param mercury_id:
+        :return:
+        """
+
+        try:
+            self.inventory_client.update_one(mercury_id, {
+                'boot.script': None
+            })
+        # This is a hack, going to build in proper response handling in the
+        # inventory controller so we no longer have to scrape the exception
+        except MercuryTransportError as mte:
+            if 'Attempting to update non-existing record' in mte.args[0]:
+                abort(404, 'MercuryID does not exist')
+
+        log.info('Deleted boot script for {}'.format(mercury_id))
+        response = jsonify(dict(message='deleted'))
+        response.status_code = 202
+
+        return response
