@@ -55,8 +55,8 @@ def list_active_computers():
     return jsonify(data)
 
 
-@active_blueprint.route('/computers/<mercury_id>',
-                   methods=['GET'], strict_slashes=False)
+@active_blueprint.route('/computers/<blacklist(query):mercury_id>',
+                        methods=['GET'], strict_slashes=False)
 def get_active_computer(mercury_id):
     """
     Get one active device by mercury_id.

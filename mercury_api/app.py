@@ -21,12 +21,17 @@ from mercury_api.transaction_log import setup_logging
 from mercury_api.views.active import active_blueprint
 from mercury_api.views.inventory import inventory_blueprint
 from mercury_api.views.rpc import rpc_blueprint
+from mercury_api.custom_converters import BlackListConverter
 
 
 app = Flask(__name__)
 
 # Set default app logging
 log = setup_logging(app)
+
+
+# Add custom converters
+app.url_map.converters['blacklist'] = BlackListConverter
 
 
 # Attach http error handler
