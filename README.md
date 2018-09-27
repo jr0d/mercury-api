@@ -20,3 +20,9 @@ start the mercury-api service.
 ```
 docker-compose -f docker-compose.yml -p mercury-api up
 ```
+
+## Running Tests
+
+```
+tox
+```

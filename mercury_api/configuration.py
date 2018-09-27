@@ -84,3 +84,4 @@ def get_api_configuration():
     options(api_configuration)
 
     return api_configuration.scan_options()
+
