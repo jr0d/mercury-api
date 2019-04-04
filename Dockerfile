@@ -1,4 +1,4 @@
-FROM local/mercury-core:latest
+FROM python
 
 ADD . /usr/src/mercury-api
 RUN pip install -r /usr/src/mercury-api/requirements.txt

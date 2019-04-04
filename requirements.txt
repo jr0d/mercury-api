@@ -1,3 +1,6 @@
-flask
-mercury-core
+Flask==0.12.2
+mercury-core==0.1.9
+pyzmq==17.0.0
+msgpack-python==0.5.6
+gevent==1.4.0
 

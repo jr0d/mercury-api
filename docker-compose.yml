@@ -1,7 +1,7 @@
 version: "3"
 services:
     mercury_api:
-        image: local/mercury-api:latest
+        image: jaredrodriguez/mercury-api:latest
         ports:
             - '9005:9005'
         environment:

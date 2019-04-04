@@ -53,3 +53,40 @@ def check_query(f):
         return f(*args, **kwargs)
 
     return wrapper
+
+
+def check_boot_state(f):
+    """
+    Validates state parameter for boot state changes
+    """
+    def wrapper(*args, **kwargs):
+        try:
+            state = request.json['state']
+        except KeyError:
+            raise HTTPError(message="`state` is not provided in request", status_code=400)
+
+        one_of = ['agent', 'local', 'rescue']
+        if state not in one_of:
+            print('here')
+            raise HTTPError(message='State must be one of {}'.format(','.join(one_of)),
+                            status_code=400)
+        return f(*args, **kwargs)
+    return wrapper
+
+
+def check_boot_script(f):
+    """
+    Validates script parameter for boot script changes
+    :param f:
+    :return:
+    """
+    def wrapper(*args, **kwargs):
+        try:
+            script = request.json['script']
+        except KeyError:
+            raise HTTPError(message="`state` is not provided in request", status_code=400)
+
+        if not isinstance(script, str):
+            raise HTTPError(message="Script is malformed", status_code=400)
+        return f(*args, **kwargs)
+    return wrapper
